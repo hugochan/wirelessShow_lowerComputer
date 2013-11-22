@@ -20,11 +20,13 @@
   */ 
 
 #include "stm32f4xx_flash.h"
-
+#include "userConfig.h"
 
 /* Private define ------------------------------------------------------------*/
-#define FLASH_USER_START_ADDR   ADDR_FLASH_SECTOR_2   /* Start @ of user Flash area */
-#define FLASH_USER_END_ADDR     ADDR_FLASH_SECTOR_5   /* End @ of user Flash area */
+#define FLASH_USER_START_ADDR   ADDR_FLASH_SECTOR_4   /* Start @ of user Flash area */
+#define FLASH_USER_END_ADDR     ADDR_FLASH_SECTOR_11   /* End @ of user Flash area */
+#define FLASH_USER_START_Index_ADDR   ADDR_FLASH_SECTOR_4   /* Start @ of user Flash index area */
+#define FLASH_USER_START_Data_ADDR   ADDR_FLASH_SECTOR_5   /* Start @ of user Flash data area */
 
 /* Base address of the Flash sectors */
 #define ADDR_FLASH_SECTOR_0     ((uint32_t)0x08000000) /* Base @ of Sector 0, 16 Kbytes */
@@ -40,17 +42,23 @@
 #define ADDR_FLASH_SECTOR_10    ((uint32_t)0x080C0000) /* Base @ of Sector 10, 128 Kbytes */
 #define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) /* Base @ of Sector 11, 128 Kbytes */
 
+#define maxTotalDataNumber ((__IO uint32_t)131072) //128Kbytes/1bytes=128*1024
+#define dataSectorNum  ((uint8_t)7) //user flash data area sector number 
 /* Private variables ---------------------------------------------------------*/
 uint32_t StartSector = 0, EndSector = 0;
-__IO uint32_t TotalNumber = 0;//记入用户自定义区数据总个数 
+extern __IO uint32_t totalDataNumber;//各段记录数据个数计数器 
 __IO uint32_t Address = FLASH_USER_START_ADDR;//flash内部地址（此处作为指针用）
-                                             //初始地址为用户自定义区域首地址
+//__IO uint32_t maxTotalDataNumber = 131072;//128Kbytes/1bytes=128*1024
 
 /* Private functions ---------------------------------------------------------*/
 uint32_t GetSector(uint32_t Address);
-void flash_init(void);
-_Bool flash_write(uint8_t Data[],uint32_t DataNumber);
-void flash_read(uint8_t ReadData[]);
+_Bool flash_init(void);
+_Bool flash_init_sector(uint32_t sectorAddr);
+uint32_t getFreeDataStartAddr(void);
+char flash_writeIndex(uint32_t IndexList[], uint8_t IndexLength);
+char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr);
+char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t* readIndexCount);
+char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr);
 
 
 /**
@@ -58,11 +66,10 @@ void flash_read(uint8_t ReadData[]);
   * @param  None
   * @retval None
   */
-void flash_init(void)
+_Bool flash_init(void)
 { 
   uint32_t i = 0; 
   Address = FLASH_USER_START_ADDR;//每次初始化flash时初始化地址
-  TotalNumber = 0;//每次初始化flash时初始化用户自定义区数据总个数
   
   /* Unlock the Flash to enable the flash control register access *************/ 
   FLASH_Unlock();
@@ -85,76 +92,228 @@ void flash_init(void)
     { 
       /* Error occurred while sector erase. 
          User can add here some code to deal with this error  */
-      while (1)
-      {
-        //待扩展！！！
-      }
+     return 1;
     }
   }
   
   /* Lock the Flash to disable the flash control register access (recommended
      to protect the FLASH memory against possible unwanted operation) *********/
   FLASH_Lock();
+  return 0;
 }
 
-
 /**
-  * @brief  Write Data[] to flash
-  * @param  Data[]: Data to be written
-  * @param  DataNumber: Number of Data[]
-  * @retval _Bool data(1 for success, 0 for failure)
+  * @brief  Initialize the specific flash sector control
+  * @param  None
+  * @retval None
   */
-_Bool flash_write(uint8_t Data[],uint32_t DataNumber)
-{
-  uint32_t i = 0;
-    
+_Bool flash_init_sector(uint32_t sectorAddr)
+{ 
   /* Unlock the Flash to enable the flash control register access *************/ 
   FLASH_Unlock();
+  
+  /* Clear pending flags (if any) */  
+  FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | 
+                  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR); 
+  
+  /* Erase the user Flash area */
  
-  /* Program the user Flash area word by word
-   (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/ 
-  while(i < DataNumber)
-  {  
-    if (FLASH_ProgramByte(Address, Data[i]) == FLASH_COMPLETE)
-    {
-        Address += 1;
-        i++;
-        TotalNumber += 1;
-    }
-    else
-    { 
-      /* Error occurred while writing data in Flash memory. 
-         User can add here some code to deal with this error */
-      while (1)
-      {
-      }
-    }
+  /* Device voltage range supposed to be [2.7V to 3.6V], the operation will
+       be done by word */ 
+  if (FLASH_EraseSector(GetSector(sectorAddr), VoltageRange_3) != FLASH_COMPLETE)
+  { 
+    /* Error occurred while sector erase. 
+     User can add here some code to deal with this error  */
+    return 1;
   }
   
   /* Lock the Flash to disable the flash control register access (recommended
      to protect the FLASH memory against possible unwanted operation) *********/
   FLASH_Lock();
-  return 1;
+  return 0;
+}
+
+/**
+  * @brief  get free flash user data area address
+  * @param  None
+  * @retval None
+  */
+uint32_t getFreeDataStartAddr(void)
+{
+  uint32_t readIndexList[uniIndexLength*dataSectorNum];//最大存满所有7个sector的index
+  uint8_t* readIndexCount = (uint8_t*)malloc(sizeof(uint8_t));
+  uint32_t freeDataStartAddr = 0;//存放返回空闲地址块
+  flash_readIndex(readIndexList,uniIndexLength, readIndexCount);//???????查看程序 断点
+  if (*readIndexCount != 0)
+  {
+    uint8_t iCount = 0;
+    uint32_t tempAddr[dataSectorNum];//最多存放7个地址块空间
+    while(iCount < *readIndexCount)
+    {
+      tempAddr[iCount] = *(readIndexList+iCount*uniIndexLength);//取出readIndexList中地址块存入临时数组
+      iCount++;
+    }
+    uint8_t iSector = 0;
+    _Bool getFlag;
+    while(iSector < dataSectorNum)
+    {
+      getFlag = 1;
+      iCount = 0;
+      while(iCount < (uint8_t)((*readIndexCount)/uniIndexLength))
+      {
+        //如果某个sector首地址在tempAddr数组中，则该首地址不合格，查询下一块sector
+        if(tempAddr[iCount] == (ADDR_FLASH_SECTOR_5+(uint32_t)iSector*((uint32_t)0x00020000)))
+        {
+          getFlag = 0;
+          break;//跳出循环
+        }
+        iCount++;
+      }
+      if (getFlag == 1)//如果某个sector首地址不在tempAddr数组中，则该首地址为有效freeDataStartAddr
+      {
+        freeDataStartAddr = (ADDR_FLASH_SECTOR_5+(uint32_t)iSector*((uint32_t)0x00020000));
+        break;//跳出循环
+      }
+      iSector++;
+    }
+  }
+  else
+  {
+    freeDataStartAddr = FLASH_USER_START_Data_ADDR;//若index为空，返回flash user data area首地址
+  }
+  return freeDataStartAddr;
+}
+/**
+  * @brief  Write Data[] to flash
+  * @param  Data[]: Data to be written
+  * @param  DataNumber: Number of Data[]
+  * @retval _Bool data(0 for success, 1 for failure)
+  */
+char flash_writeIndex(uint32_t IndexList[], uint8_t IndexLength)//每次先读取index内容然后擦除后重新写入新内容
+{//uint32_t dataStartAddr,uint32_t name, uint32_t totalDataNumber
+    uint8_t i = 0;
+    uint32_t indexStartAddr = FLASH_USER_START_Index_ADDR;
+  /* Unlock the Flash to enable the flash control register access *************/ 
+    FLASH_Unlock();
+   /* Program the user Flash area word by word
+     (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/   
+    while(i < IndexLength)  
+    {
+      if (FLASH_ProgramWord(indexStartAddr, IndexList[i]) == FLASH_COMPLETE)
+      {
+          indexStartAddr += 4;
+          i++;
+      }
+      else
+      { 
+        /* Error occurred while writing data in Flash memory. 
+           User can add here some code to deal with this error */
+        return 1;
+      }
+    }
+    
+    
+    /* Lock the Flash to disable the flash control register access (recommended
+       to protect the FLASH memory against possible unwanted operation) *********/
+    FLASH_Lock();
+    return 0;
+    
+    
+}
+/**
+  * @brief  Write Data[] to flash
+  * @param  Data[]: Data to be written
+  * @param  DataNumber: Number of Data[]
+  * @retval char data(0 for success, 1 for write error, 2 for data overflow)
+  */
+char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr)
+{
+    uint32_t i = 0;
+      
+    /* Unlock the Flash to enable the flash control register access *************/ 
+    FLASH_Unlock();
+   
+    /* Program the user Flash area word by word
+     (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/ 
+    while(i < DataNumber)
+    {  
+      if(totalDataNumber < maxTotalDataNumber)
+      { 
+        if (FLASH_ProgramByte(dataStartAddr+totalDataNumber, Data[i]) == FLASH_COMPLETE)
+        {
+            i++;
+            totalDataNumber += 1;
+        }
+        else
+        { 
+           /* Error occurred while writing data in Flash memory. 
+             User can add here some code to deal with this error */
+           /* Lock the Flash to disable the flash control register access (recommended
+           to protect the FLASH memory against possible unwanted operation) *********/
+           FLASH_Lock();
+           return 1;
+        }
+     }
+     else
+     {
+       //data overflow occurred, extra datas will be omitted
+       /* Lock the Flash to disable the flash control register access (recommended
+       to protect the FLASH memory against possible unwanted operation) *********/
+       FLASH_Lock();
+       return 2;
+     }
+    }
+    
+    /* Lock the Flash to disable the flash control register access (recommended
+       to protect the FLASH memory against possible unwanted operation) *********/
+    FLASH_Lock();
+    return 0;
 }
 
 
 /**
   * @brief  Write Data[] to flash
-  * @param  Data[]: Data to be written
-  * @param  DataNumber: Number of Data[]
-  * @retval _Bool data(1 for success, 0 for failure)
+  * @param  ReadData[]: Data to be read
+  * @param  totalDataNumber: Number of Data[]
+  * @param  dataStartAddr: start of dataAddr
+  * @retval char data(0 for success, 1 for failure)
   */
-void flash_read(uint8_t ReadData[])
+char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t* readIndexCount)
+{
+  *readIndexCount = 0;
+  uint32_t readIndexStartAddr = FLASH_USER_START_Index_ADDR;
+  uint32_t tempIndex = *(__IO uint32_t*)(readIndexStartAddr+(*readIndexCount)*4);
+  
+  while (tempIndex != (uint32_t)0xFFFFFFFF)//判断flash user index area是否有存储内容
+  {
+    uint8_t iLength = 0;
+    while(iLength < readIndexLength)
+    {  
+      readIndexList[*readIndexCount] = *(__IO uint32_t*)(readIndexStartAddr+(*readIndexCount)*4);
+      iLength++;
+      (*readIndexCount)++;
+    }
+    tempIndex = *(__IO uint32_t*)(readIndexStartAddr+(*readIndexCount)*4);
+  }
+  return 0;
+}
+/**
+  * @brief  Write Data[] to flash
+  * @param  ReadData[]: Data to be read
+  * @param  totalDataNumber: Number of Data[]
+  * @param  dataStartAddr: start of dataAddr
+  * @retval char data(0 for success, 1 for failure)
+  */
+char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr)
 {
   uint32_t i = 0;
-  uint32_t localaddress = FLASH_USER_START_ADDR;//此处地址为局部变量
   
-  while (i < TotalNumber)
+  while (i < totalDataNumber)
   {
-    ReadData[i] = *(__IO uint32_t*)localaddress;
-    localaddress += 1;
+    ReadData[i] = *(__IO uint32_t*)(dataStartAddr+i);
     i++;
-  }  
+  }
+  return 0;
 }
 
 

@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 /** @addtogroup STM32F4-Discovery_Demo
   * @{
   */
@@ -52,13 +51,21 @@ LIS302DL_InitTypeDef  LIS302DL_InitStruct;
 LIS302DL_FilterConfigTypeDef LIS302DL_FilterStruct;  
 uint8_t X_Offset, Y_Offset, Z_Offset  = 0x00;
 uint8_t Buffer[6];
-_Bool NoWrittenFlag = 0;//未写入（flash）标志，初始状态为已写
-uint8_t Counter = 0;
+_Bool NoWrittenFlag = 0;//未写入（flash）标志，初始状态（0）为已完成一次完整写入
+_Bool DataWriteErrorFlag = 0;//flash中各块地址空间数据写入出错标志，0 for未出错
+_Bool WritingSectorFlag = 0;//正在写入sector标志位，表示某块sector正在被使用,0 for 未正在写入
+_Bool NoFreeSectors = 0;//无空闲sector块标志位，0 for 有，1 for 无
+__IO uint32_t totalDataNumber = 0;//各段记录数据个数计数器
+uint8_t Counter = 0;//采样组计数器
 uint32_t SendCounter = 0;
 uint8_t Total_Buffer_Number = 20;
 uint8_t Total_Buffer[20] = {0};//定义数据缓冲器(大小Total_Buffer_Number = 20)，
                               //用于缓冲写入flash
-uint8_t SendData[1200];//存放读取到的flash中有效数据,将通过串口发送给上位机处理的加速度数据
+uint8_t SendData[1000];//存放读取到的flash中有效数据,将通过串口发送给上位机处理的加速度数据
+uint32_t ReadIndex[10];//
+uint32_t IndexList[uniIndexLength*7];
+uint32_t writingDataAddr;//正在写入数据的sector块首地址
+uint8_t IndexCount = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void Demo_Exec(void);
@@ -172,6 +179,12 @@ static void Demo_Exec(void)
   
   /* 串口配置 */
   USART1_Config();
+  
+  /* Initialize LEDs to be managed by GPIO */
+  STM_EVAL_LEDInit(LED4);
+  STM_EVAL_LEDInit(LED3);
+  STM_EVAL_LEDInit(LED5);
+  STM_EVAL_LEDInit(LED6);
     
   while(1)
   {
@@ -179,12 +192,6 @@ static void Demo_Exec(void)
     
     /* Reset UserButton_Pressed variable */
     UserButtonPressed = 0x00;
-  
-    /* Initialize LEDs to be managed by GPIO */
-    STM_EVAL_LEDInit(LED4);
-    STM_EVAL_LEDInit(LED3);
-    STM_EVAL_LEDInit(LED5);
-    STM_EVAL_LEDInit(LED6);
     
     /* SysTick end of count event each 2.5ms */
     RCC_GetClocksFreq(&RCC_Clocks);
@@ -196,10 +203,30 @@ static void Demo_Exec(void)
     STM_EVAL_LEDOff(LED5);
     STM_EVAL_LEDOff(LED6);
     
-     
+    
     /* Waiting User Button is pressed */
     while (UserButtonPressed == 0x00)
     {
+      /* if Button(PB12) is pressed, flash user area will be erased*/
+      if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_12) == Bit_SET)
+      {
+        /*waiting Button(PB12) being released*/
+        while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_12) == Bit_SET);//??不灵敏
+        /* flash初始化 */
+        flash_init();
+        /*灯全亮后全灭，指示flash中用户数据被擦除*/
+        STM_EVAL_LEDOn(LED4);
+        STM_EVAL_LEDOn(LED3);
+        STM_EVAL_LEDOn(LED5);
+        STM_EVAL_LEDOn(LED6);
+        Delay(10);
+        STM_EVAL_LEDOff(LED4);
+        STM_EVAL_LEDOff(LED3);
+        STM_EVAL_LEDOff(LED5);
+        STM_EVAL_LEDOff(LED6);
+        Delay(10);
+      }
+      
       /* Toggle LED4 */
       STM_EVAL_LEDToggle(LED4);
       Delay(10);
@@ -232,8 +259,14 @@ static void Demo_Exec(void)
     /* Waiting User Button is Released */
     while (STM_EVAL_PBGetState(BUTTON_USER) == Bit_SET)
     {}
-    /*计数清零*/
-    Counter = 0;
+    /*各段记录相互独立的标志位均清零*/
+    Counter = 0;//分组采用计数器复位
+    DataWriteErrorFlag = 0;//flash写入错误标志位复位
+    NoWrittenFlag = 0;//未写入标志位复位
+    WritingSectorFlag = 0;//正在写入sector标志位复位
+    totalDataNumber = 0;//各段记录数据个数计数器复位
+    IndexCount = 0;//IndexList计数器复位
+    
     
     /* Turn ON all LEDs */
     STM_EVAL_LEDOn(LED4);
@@ -244,8 +277,7 @@ static void Demo_Exec(void)
     UserButtonPressed = 0x00;
     /* Enable USART1 */
     USART_Cmd(USART1, ENABLE);
-    /* flash初始化 */
-    flash_init();
+
     
     /* MEMS configuration */
     LIS302DL_InitStruct.Power_Mode = LIS302DL_LOWPOWERMODE_ACTIVE;
@@ -275,11 +307,38 @@ static void Demo_Exec(void)
     /* Waiting User Button is pressed */
     while (UserButtonPressed == 0x00)                    //利用采样间隙写入缓冲器内数据，提高效率
     {
-      if(0 == Counter&&1 == NoWrittenFlag)
+      if((0 == Counter)&&(1 == NoWrittenFlag)&&(0 == DataWriteErrorFlag))
       {
-        //flash写入
-        flash_write(Total_Buffer, Total_Buffer_Number);
-        NoWrittenFlag = 0;//表示已写入(flash)
+        if (WritingSectorFlag == 0)
+        {
+          writingDataAddr = getFreeDataStartAddr();
+          if (writingDataAddr == 0)
+          {
+            //????指示灯显示存储空间已满
+            NoFreeSectors = 1;//无空闲sector块置位
+            NoWrittenFlag = 0;
+            break;//退出采样模式
+          }
+          else
+          {
+          //一次完整flash写入
+          flash_init_sector(writingDataAddr);//保险起见，先擦除该空闲sector块
+          DataWriteErrorFlag = flash_writeData(Total_Buffer, Total_Buffer_Number,writingDataAddr);
+          NoWrittenFlag = 0;//表示已写入(flash)
+          WritingSectorFlag = 1;//正在写入sector标志位置位，表示启用该块sector
+          }
+        }
+        else
+        {
+          //flash写入
+          DataWriteErrorFlag = flash_writeData(Total_Buffer, Total_Buffer_Number,writingDataAddr);
+          NoWrittenFlag = 0;//表示已写入(flash)
+        }
+      }
+      if(DataWriteErrorFlag != 0)
+      {
+        //擦除该块sector,数据写入错误指示灯？？？？？
+        flash_init_sector(writingDataAddr);//flash写入错误后，仍可尝试再次采样存储，但须将书写笔先静止，然后重新开始书写
       }
     }
     
@@ -287,9 +346,20 @@ static void Demo_Exec(void)
     while (STM_EVAL_PBGetState(BUTTON_USER) == Bit_SET)
     {}
     
-    /*如果退出采样模式时尚有数据未写入flash*/
-    if(1 == NoWrittenFlag)  flash_write(Total_Buffer, Counter);
+    /*如果退出采样模式时尚有数据未写入flash，在此一并写入flash*/
+    if(1 == NoWrittenFlag)  flash_writeData(Total_Buffer, Counter,writingDataAddr);
     
+    if ((0 == NoFreeSectors)&&(1 == WritingSectorFlag))
+    {
+      /*至此，一条“完整”记录写入flash完毕，需要在flash中建立关于这条记录的索引index*/    
+      flash_readIndex(IndexList,uniIndexLength, &IndexCount);//从flash中读取原IndexList
+      IndexList[IndexCount] = writingDataAddr;//写入最新的数据地址块首地址
+      srand((int)time(0));
+      IndexList[IndexCount+1] = rand()%100;//写入最新的记录名
+      IndexList[IndexCount+2] = totalDataNumber;//写入最新的段记录总个数
+      flash_init_sector(((uint32_t)0x08010000));//先擦除Index区域（sector 4）
+      flash_writeIndex(IndexList,IndexCount+3);//后写入
+    }
     
     DemoEnterCondition = 0x00;//防止此时进入采样模式
  
@@ -299,35 +369,30 @@ static void Demo_Exec(void)
     STM_EVAL_LEDOff(LED5);
     STM_EVAL_LEDOff(LED6);
     
-    /* Waiting Send Button(PB11) is pressed */
-    while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_RESET)
+    /* if Send Button(PB11) is pressed */
+    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET)
     {
-    }
-    /* Waiting Send Button(PB11) is released */
-    while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET)
-    {
-    }
-    
-     STM_EVAL_LEDToggle(LED4);
-     STM_EVAL_LEDToggle(LED3);
-     STM_EVAL_LEDToggle(LED5);
-     STM_EVAL_LEDToggle(LED6);
-     Delay(10);
+      while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET);
+        
+      //读取flash中有效数据
+      flash_readData(SendData,totalDataNumber, (uint32_t)0x08020000);
+      //开始发送串口数据
+      while(SendCounter < totalDataNumber)
+      {
+        SendChar((unsigned char)SendData[SendCounter]);
+        SendChar((unsigned char)SendData[SendCounter + 1]);
+        SendCounter += 2;
+      }
+      SendCounter = 0;
+      SendChar(' ');//发送一个空格符作为结束符
       
-    //读取flash中有效数据
-    flash_read(SendData);
-    //开始发送串口数据
-    while(SendCounter < TotalNumber)
-    {
-      SendChar((unsigned char)SendData[SendCounter]);
-      SendChar((unsigned char)SendData[SendCounter + 1]);
-      SendCounter += 2;
-    }
-    SendCounter = 0;
-    SendChar(' ');//发送一个空格符作为结束符
+      /* Disable USART1 */
+      USART_Cmd(USART1, DISABLE);
     
-    /* Disable USART1 */
-    USART_Cmd(USART1, DISABLE);
+    }
+    
+    
+    
     /* Disable SPI1 used to drive the MEMS accelerometre */
     SPI_Cmd(LIS302DL_SPI, DISABLE); 
   }
@@ -346,8 +411,8 @@ void IO_Init(void)
   /* GPIOD Periph clock enable */
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
   
-  /* Configure PB11 pin as input */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+  /* Configure PB11 and PB12 pin as input */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11||GPIO_Pin_12;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
   GPIO_Init(GPIOB, &GPIO_InitStructure);

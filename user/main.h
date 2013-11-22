@@ -28,8 +28,10 @@
 #include "stm32f4_discovery_audio_codec.h"
 #include "stm32f4_discovery_lis302dl.h"
 #include "selftest.h"
-#include <stdio.h>
 #include "flash_usr.h"
+#include "userConfig.h"
+
+
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/

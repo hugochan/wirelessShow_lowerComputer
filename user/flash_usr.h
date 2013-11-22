@@ -23,6 +23,7 @@
 #ifndef __flash_usr_H
 #define __flash_usr_H
 
+
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_flash.h"
 
@@ -30,13 +31,16 @@
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported variables --------------------------------------------------------*/
-extern __IO uint32_t TotalNumber;
+extern __IO uint32_t totalDataNumber;
 /* Exported functions ------------------------------------------------------- */
 extern uint32_t GetSector(uint32_t Address);
-extern void flash_init(void);
-extern _Bool flash_write(uint8_t Data[],uint32_t DataNumber);
-extern void flash_read(uint8_t ReadData[]);
-
+extern _Bool flash_init(void);
+extern _Bool flash_init_sector(uint32_t sectorAddr);
+extern char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr);
+extern char flash_writeIndex(uint32_t IndexList[], uint8_t IndexCount);
+extern char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr);
+extern char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t* readIndexCount);
+extern uint32_t getFreeDataStartAddr(void);
 #endif /* __flash_usr_H */
 /**
   * @}
