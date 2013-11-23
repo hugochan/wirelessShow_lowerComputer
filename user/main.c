@@ -439,6 +439,28 @@ static void Demo_Exec(void)
           }
             SendCounter = 0;
         }
+        //接收自上位机的删除信号 'Y' for 删除，'N' for 不删除
+        if(serialRecv[1] == 'Y')
+        {
+           //uint32_t tempIndexList[uniIndexLength*7];
+           flash_init_sector(IndexList[(serialRecv[0]-48)*uniIndexLength]);//擦除该index所对应flash user data area区域
+           flash_init_sector(((uint32_t)0x08010000));//先擦除Index区域（sector 4）
+           i = 0;
+           uint8_t k = 0;
+           while(i < IndexCount)
+           {
+             if (i != (serialRecv[0]-48)*uniIndexLength)
+             {
+                IndexList[k] = IndexList[i];
+                IndexList[k+1] = IndexList[i+1];
+                IndexList[k+2] = IndexList[i+2];
+                k += uniIndexLength;
+             }
+             i += uniIndexLength;
+           }
+           flash_writeIndex(IndexList,IndexCount-uniIndexLength);//后重写该条index记录
+        }
+        
       }
     }
       
