@@ -55,6 +55,7 @@ _Bool NoWrittenFlag = 0;//Î´Ð´Èë£¨flash£©±êÖ¾£¬³õÊ¼×´Ì¬£¨0£©ÎªÒÑÍê³ÉÒ»´ÎÍêÕûÐ´Èë
 _Bool DataWriteErrorFlag = 0;//flashÖÐ¸÷¿éµØÖ·¿Õ¼äÊý¾ÝÐ´Èë³ö´í±êÖ¾£¬0 forÎ´³ö´í
 _Bool WritingSectorFlag = 0;//ÕýÔÚÐ´Èësector±êÖ¾Î»£¬±íÊ¾Ä³¿ésectorÕýÔÚ±»Ê¹ÓÃ,0 for Î´ÕýÔÚÐ´Èë
 _Bool NoFreeSectors = 0;//ÎÞ¿ÕÏÐsector¿é±êÖ¾Î»£¬0 for ÓÐ£¬1 for ÎÞ
+_Bool serialFlag = 1;//´®¿ÚÍ¨ÐÅÓÐÐ§±êÖ¾Î»£¬1 forÓÐÐ§£¬0 forÎÞÐ§
 __IO uint32_t totalDataNumber = 0;//¸÷¶Î¼ÇÂ¼Êý¾Ý¸öÊý¼ÆÊýÆ÷
 uint8_t Counter = 0;//²ÉÑù×é¼ÆÊýÆ÷
 uint32_t SendCounter = 0;
@@ -65,15 +66,19 @@ uint8_t SendData[1000];//´æ·Å¶ÁÈ¡µ½µÄflashÖÐÓÐÐ§Êý¾Ý,½«Í¨¹ý´®¿Ú·¢ËÍ¸øÉÏÎ»»ú´¦Àíµ
 uint32_t ReadIndex[10];//
 uint32_t IndexList[uniIndexLength*7];
 uint32_t writingDataAddr;//ÕýÔÚÐ´ÈëÊý¾ÝµÄsector¿éÊ×µØÖ·
-uint8_t IndexCount = 0;
+uint8_t IndexCount = 0;//IndexÇøÓòÖÐÊý¾Ý¸öÊý¼ÆÊýÆ÷£¬IndexCount=¼ÇÂ¼¶ÎÊý*uniIndexLength£¬×î´óÖµÎªuniIndexLength*7
+unsigned char serialRecv[20];
+uint8_t serialRecvNum = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void Demo_Exec(void);
 void USART1_Config(void);
+void NVIC_Config(void);
 void SendChar(unsigned char ch);
 void SendString(unsigned char *p);
 unsigned char GetChar(void);
 void IO_Init(void);//³õÊ¼»¯ÓÃÓÚ¼ì²âÊÇ·ñÍ¨¹ý´®¿Ú·¢ËÍÊý¾ÝµÄPB11¶Ë¿Ú
+void uint32_to_uint8(unsigned char* data2,uint32_t data);
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -179,6 +184,7 @@ static void Demo_Exec(void)
   
   /* ´®¿ÚÅäÖÃ */
   USART1_Config();
+  NVIC_Config();
   
   /* Initialize LEDs to be managed by GPIO */
   STM_EVAL_LEDInit(LED4);
@@ -276,7 +282,7 @@ static void Demo_Exec(void)
     
     UserButtonPressed = 0x00;
     /* Enable USART1 */
-    USART_Cmd(USART1, ENABLE);
+    //USART_Cmd(USART1, ENABLE);
 
     
     /* MEMS configuration */
@@ -370,34 +376,90 @@ static void Demo_Exec(void)
     STM_EVAL_LEDOff(LED6);
     
     /* if Send Button(PB11) is pressed */
-    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET)
+    if(1)
+    //if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET)//²»Ì«ÁéÃô
     {
-      while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET);
+      //while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11) == Bit_SET);
         
-      //¶ÁÈ¡flashÖÐÓÐÐ§Êý¾Ý
-      flash_readData(SendData,totalDataNumber, (uint32_t)0x08020000);
-      //¿ªÊ¼·¢ËÍ´®¿ÚÊý¾Ý
-      while(SendCounter < totalDataNumber)
-      {
-        SendChar((unsigned char)SendData[SendCounter]);
-        SendChar((unsigned char)SendData[SendCounter + 1]);
-        SendCounter += 2;
-      }
-      SendCounter = 0;
-      SendChar(' ');//·¢ËÍÒ»¸ö¿Õ¸ñ·û×÷Îª½áÊø·û
+     //¶ÁÈ¡flashÖÐindexÇøÓò
+      flash_readIndex(IndexList,uniIndexLength, &IndexCount);
       
-      /* Disable USART1 */
-      USART_Cmd(USART1, DISABLE);
-    
+      
+      //ÓëÉÏÎ»»úÎÕÊÖ²Ù×÷
+      unsigned char* shakeHandSend = "ready? ";//×îºóÒ»¸ö×Ö·û±ØÐëÊÇ¿Õ¸ñ×Ö·û
+      while (*shakeHandSend != ' ')
+      {
+        SendChar(*shakeHandSend);
+        shakeHandSend++;
+      }
+      
+      Delay(100);//µÈ´ý1sÈ·ÈÏ½ÓÊÕ×ÔÉÏÎ»»úµÄÎÕÊÖÐÅºÅ"ok!"
+      if (serialRecv[0] == 'o'&&serialRecv[1] == 'k'&&serialRecv[2] == '!')
+      {
+        //ÓëÉÏÎ»»úÎÕÊÖ³É¹¦£¬¿É·¢ËÍÊý¾Ý
+        serialFlag = 1;
+      }
+      else
+      {
+        //ÓëÉÏÎ»»úÎÕÊÖÊ§°Ü£¬ÎÞ·¨·¢ËÍÊý¾Ý
+        serialFlag = 0;
+      }
+      
+      
+      if (1 == serialFlag)
+      {
+        //ÏÈ·¢ËÍIndexListÊý¾Ý¸øÉÏÎ»»ú£¬ÉÏÎ»»úÑ¡ÔñÐèÒªµÄ¼ÇÂ¼¶Î£¨segment£©·´À¡¸øÏÂÎ»»ú£¬ÏÂÎ»»ú¾Ý´Ë·¢ËÍÏàÓ¦¼ÇÂ¼¶Î¸øÉÏÎ»»ú
+        uint8_t i;
+        unsigned char sendData[4];
+        
+        SendString("index");
+        while(SendCounter < IndexCount)
+        {
+          uint32_to_uint8(sendData,IndexList[SendCounter]);
+          i = 0;
+          while(i < 4)
+          {
+            SendChar((unsigned char)sendData[i]);
+            i+= 1 ;
+          }
+          SendCounter += 1;
+        }
+        SendCounter = 0;
+        
+        while(serialRecv[0] == 'o');//µÈ´ýÈ·ÈÏ½ÓÊÕ×ÔÉÏÎ»»úµÄÑ¡ÔñÐÅºÅ"0"¡ª¡ª"6"
+        if (serialRecv[0] == '0'||serialRecv[0] == '1'||serialRecv[0] == '2'||serialRecv[0] == '3'||serialRecv[0] == '4'||serialRecv[0] == '5'||serialRecv[0] == '6')
+        {
+          //¶ÁÈ¡flash user data areaÖÐ¶ÔÓ¦Êý¾Ý
+          flash_readData(SendData,IndexList[(serialRecv[0]-48)*uniIndexLength+2], IndexList[(serialRecv[0]-48)*uniIndexLength]);
+          //¿ªÊ¼·¢ËÍ´®¿ÚÊý¾Ý
+          while(SendCounter < IndexList[(serialRecv[0]-48)*uniIndexLength+2])
+          {
+            SendChar((unsigned char)SendData[SendCounter]);
+            SendCounter += 1 ;
+          }
+            SendCounter = 0;
+        }
+      }
     }
-    
-    
-    
+      
     /* Disable SPI1 used to drive the MEMS accelerometre */
     SPI_Cmd(LIS302DL_SPI, DISABLE); 
+  
   }
 }
 
+/**
+  * @brief  convert uint32_t data to 4 uint8_t datas
+  * @param  None
+  * @retval None
+  */
+void uint32_to_uint8(unsigned char* data2,uint32_t data)//¸ß×Ö½ÚÏÈ·¢ËÍ
+{
+  data2[0] = (data&0xff000000)>>24;
+  data2[1] = (data&0x00ff0000)>>16;
+  data2[2] = (data&0x0000ff00)>>8;
+  data2[3] = data&0x000000ff;
+}
 
 /**
   * @brief  Initialize IO for deciding whether to Send Data through USART
@@ -411,31 +473,60 @@ void IO_Init(void)
   /* GPIOD Periph clock enable */
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
   
-  /* Configure PB11 and PB12 pin as input */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11||GPIO_Pin_12;
+  
+  /* Configure PB12 pin as input */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
   GPIO_Init(GPIOB, &GPIO_InitStructure);
+  
+  
+   /* Configure PB11 pin as input */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
+  
+    /* Enable SYSCFG clock */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+  /* Connect EXTI Line1 to PB11 pin */
+  SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOB, EXTI_PinSource11);
+  
+  /* Configure EXTI Line1 */
+  EXTI_InitTypeDef   EXTI_InitStructure;
+  EXTI_InitStructure.EXTI_Line = EXTI_Line1;
+  EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;  
+  EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+  EXTI_Init(&EXTI_InitStructure);
+  
+      /* Enable and set EXTI Line1 Interrupt to the lowest priority */
+  NVIC_InitTypeDef NVIC_InitStructure;
+    
+  NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x01;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x01;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
 
 }
 
 
-/**
-  * @brief  Initializes the USB for the demonstration application.
-  * @param  None
-  * @retval None
-  */
-/*static uint32_t Demo_USBConfig(void)
+/*********************************NVICÅäÖÃ*******************************/
+void NVIC_Config(void)
 {
-  USBD_Init(&USB_OTG_dev,
-            USB_OTG_FS_CORE_ID,
-            &USR_desc, 
-            &USBD_HID_cb, 
-            &USR_cb);
-  
-  return 0;
-}*/
-
+    /* config usart1 Interrupt*/  
+    NVIC_InitTypeDef NVIC_InitStructure;
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+    
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x03;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x02;
+    NVIC_InitStructure.NVIC_IRQChannel  = USART1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+        
+    NVIC_Init(&NVIC_InitStructure);
+    
+}
 
 /*********************************´®¿Ú³õÊ¼»¯*******************************/
 void USART1_Config(void)
@@ -473,8 +564,8 @@ void USART1_Config(void)
     USART_ClockStructInit(&USART_ClockInitStruct);//Ö®Ç°Ã»ÓÐÌîÈëÈ±Ê¡Öµ£¬ÊÇ²»ÐÐµÄ
     USART_ClockInit(USART6, &USART_ClockInitStruct);
     /*Ê¹ÄÜÖÐ¶Ï*/
-    //USART_ITConfig(USART1,USART_IT_RXNE,ENABLE); 
-    //USART_Cmd(USART1, ENABLE);
+    USART_ITConfig(USART1,USART_IT_RXNE,ENABLE); 
+    USART_Cmd(USART1, ENABLE);
 }
 
 /************************************·¢ËÍÒ»¸ö×Ö½Ú******************************/
@@ -499,7 +590,7 @@ void SendString(unsigned char *p)
 *******************************************************************************/
 unsigned char GetChar(void)
 {
-    unsigned char ch;
+    unsigned char ch = ' ';
     if(USART_GetFlagStatus(USART1,USART_FLAG_RXNE)==SET)
     {
       USART_ClearFlag(USART1,USART_FLAG_RXNE);

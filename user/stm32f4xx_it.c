@@ -39,7 +39,9 @@ extern _Bool NoWrittenFlag;
 extern uint8_t Counter;
 extern uint8_t Total_Buffer_Number;
 extern uint8_t Total_Buffer[];
-
+extern unsigned char serialRecv[10];
+extern uint8_t serialRecvNum;
+unsigned char tempRecv;
 /* Private function prototypes -----------------------------------------------*/
 //extern void SendChar(unsigned char ch);
 //extern void SendString(unsigned char *p);
@@ -190,10 +192,30 @@ void SysTick_Handler(void)
   */
 void EXTI0_IRQHandler(void)
 {
-  UserButtonPressed = 0x01;
-  
-  /* Clear the EXTI line pending bit */
-  EXTI_ClearITPendingBit(USER_BUTTON_EXTI_LINE);
+ 
+     UserButtonPressed = 0x01;
+     /* Clear the EXTI line pending bit */
+     EXTI_ClearITPendingBit(USER_BUTTON_EXTI_LINE);
+
+}
+
+/**
+  * @brief  This function handles EXTI1_IRQ Handler.
+  * @param  None
+  * @retval None
+  */
+void EXTI1_IRQHandler(void)
+{
+ 
+  if(EXTI_GetITStatus(EXTI_Line1) != RESET)
+  {
+    /* Toggle LED4 */
+    STM_EVAL_LEDToggle(LED4);
+    
+    /* Clear the EXTI line 1 pending bit */
+    EXTI_ClearITPendingBit(EXTI_Line1);
+  }
+
 }
 
 /**
@@ -215,5 +237,29 @@ void EXTI0_IRQHandler(void)
 * @param  None
 * @retval Pointer to report
 */
+
+
+/**
+  * @brief  This function handles USART1 interrupt request.
+  * @param  None
+  * @retval None
+  */
+void USART1_IRQHandler(void)
+{    
+    if(USART_GetFlagStatus(USART1,USART_FLAG_RXNE) == SET)
+    {
+        USART_ClearFlag(USART1,USART_FLAG_RXNE);
+        tempRecv = USART_ReceiveData(USART1);
+        if(tempRecv != ' ')
+        {
+          serialRecv[serialRecvNum] = tempRecv;
+          serialRecvNum += 1;
+        }
+        else 
+        {
+          serialRecvNum = 0;
+        }
+    }
+}
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

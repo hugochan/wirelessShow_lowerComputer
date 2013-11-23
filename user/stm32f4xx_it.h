@@ -43,6 +43,8 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
+void USART1_IRQHandler(void);
+void EXTI1_IRQHandler(void);
 
 extern void SendChar(unsigned char ch);
 extern void SendString(unsigned char *p);
