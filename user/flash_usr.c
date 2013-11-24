@@ -3,7 +3,7 @@
   * @file    flash_usr.c 
   * @author  Hugo Chan
   * @version V1.0.0
-  * @date    26-May-2013
+  * @date    24-November-2013
   * @brief   user_defined_file for FLASHModle
   ******************************************************************************
   * @attention
@@ -58,7 +58,7 @@ uint32_t getFreeDataStartAddr(void);
 char flash_writeIndex(uint32_t IndexList[], uint8_t IndexLength);
 char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr);
 char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t* readIndexCount);
-char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr);
+char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t startDataNumber, uint32_t dataStartAddr);
 
 
 /**
@@ -298,19 +298,20 @@ char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t*
   return 0;
 }
 /**
-  * @brief  Write Data[] to flash
+  * @brief  Read Data from flash
   * @param  ReadData[]: Data to be read
-  * @param  totalDataNumber: Number of Data[]
+  * @param  totalDataNumber: Number of ReadData[]
+  * @params tartDataNumber: start number of ReadData[]
   * @param  dataStartAddr: start of dataAddr
   * @retval char data(0 for success, 1 for failure)
   */
-char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr)
+char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t startDataNumber, uint32_t dataStartAddr)
 {
   uint32_t i = 0;
   
   while (i < totalDataNumber)
   {
-    ReadData[i] = *(__IO uint32_t*)(dataStartAddr+i);
+    ReadData[i] = *(__IO uint32_t*)(dataStartAddr+startDataNumber+i);
     i++;
   }
   return 0;

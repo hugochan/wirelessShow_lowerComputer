@@ -38,7 +38,7 @@ extern _Bool flash_init(void);
 extern _Bool flash_init_sector(uint32_t sectorAddr);
 extern char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr);
 extern char flash_writeIndex(uint32_t IndexList[], uint8_t IndexCount);
-extern char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t dataStartAddr);
+extern char flash_readData(uint8_t ReadData[], uint32_t totalDataNumber, uint32_t startDataNumber, uint32_t dataStartAddr);
 extern char flash_readIndex(uint32_t readIndexList[], uint8_t readIndexLength, uint8_t* readIndexCount);
 extern uint32_t getFreeDataStartAddr(void);
 #endif /* __flash_usr_H */

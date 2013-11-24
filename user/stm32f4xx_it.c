@@ -1,9 +1,9 @@
 /**
   ******************************************************************************
   * @file    stm32f4xx_it.c
-  * @author  MCD Application Team
+  * @author  Hugo Chan
   * @version V1.0.0
-  * @date    19-September-2011
+  * @date    24-November-2013
   * @brief   Main Interrupt Service Routines.
   *          This file provides all exceptions handler and peripherals interrupt
   *          service routine.
@@ -31,13 +31,13 @@
 /* Private variables ---------------------------------------------------------*/
 extern __IO uint8_t DemoEnterCondition;
 extern __IO uint8_t UserButtonPressed;
+//extern __IO uint8_t SerialButtonPressed;
 extern uint8_t Buffer[];
 extern uint8_t X_Offset;
 extern uint8_t Y_Offset;
 extern uint8_t Z_Offset;
 extern _Bool NoWrittenFlag;
 extern uint8_t Counter;
-extern uint8_t Total_Buffer_Number;
 extern uint8_t Total_Buffer[];
 extern unsigned char serialRecv[10];
 extern uint8_t serialRecvNum;
@@ -204,19 +204,15 @@ void EXTI0_IRQHandler(void)
   * @param  None
   * @retval None
   */
-void EXTI1_IRQHandler(void)
+/*void EXTI2_IRQHandler(void)
 {
- 
-  if(EXTI_GetITStatus(EXTI_Line1) != RESET)
-  {
-    /* Toggle LED4 */
-    STM_EVAL_LEDToggle(LED4);
-    
-    /* Clear the EXTI line 1 pending bit */
-    EXTI_ClearITPendingBit(EXTI_Line1);
+  if(EXTI_GetITStatus(EXTI_Line2) != RESET)
+  {   
+    SerialButtonPressed = 0x01;  
+    EXTI_ClearITPendingBit(EXTI_Line2);
   }
 
-}
+}*/
 
 /**
   * @brief  This function handles EXTI15_10_IRQ Handler.

@@ -1,9 +1,9 @@
 /**
   ******************************************************************************
   * @file    stm32f4xx_it.h 
-  * @author  MCD Application Team
+  * @author  Hugo Chan
   * @version V1.0.0
-  * @date    19-September-2011
+  * @date    24-November-2013
   * @brief   This file contains the headers of the interrupt handlers.
   ******************************************************************************
   * @attention
@@ -44,7 +44,7 @@ void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 void USART1_IRQHandler(void);
-void EXTI1_IRQHandler(void);
+//void EXTI2_IRQHandler(void);
 
 extern void SendChar(unsigned char ch);
 extern void SendString(unsigned char *p);

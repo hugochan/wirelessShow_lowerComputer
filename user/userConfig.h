@@ -3,8 +3,8 @@
   * @file    userConfig.h 
   * @author  Hugo Chan
   * @version V1.0.0
-  * @date    26-May-2013
-  * @brief   user_defined_headfile for FLASHModle
+  * @date    24-November-2013
+  * @brief   user_defined_headfile user config
   ******************************************************************************
   * @attention
   *
@@ -29,7 +29,9 @@
 #include <stdlib.h>
 /*user define*/
 #define uniIndexLength ((uint8_t)3) //Index 元素个数
-
+#define Total_Buffer_Number ((uint8_t)20) //采样模式单次写入flash最大数据数（采样缓冲区大小）
+#define upperComputerBufferNum ((uint16_t)2000)
+#define lowerComputerBufferNum ((uint16_t)2000)
 #endif /* __userConfig_H */
 /**
   * @}

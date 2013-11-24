@@ -1,9 +1,9 @@
 /**
   ******************************************************************************
   * @file    main.h 
-  * @author  MCD Application Team
+  * @author  Hugo Chan
   * @version V1.0.0
-  * @date    19-September-2011
+  * @date    24-November-2013
   * @brief   Header for main.c module
   ******************************************************************************
   * @attention
