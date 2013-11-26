@@ -21,7 +21,7 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [DebugChecksum]
-Checksum=1736780581
+Checksum=-558652670
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -81,12 +81,6 @@ GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
 SumSortOrder=0
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Bp0=_ 1 "EMUL_DATA" "totalDataNumber" 0 0 0 0 4294967295
-Bp1=_ 1 "EMUL_DATA" "totalDataNumber" 0 0 0 0 4294967295
-Count=2
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -94,18 +88,6 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
-[Aliases]
-A0=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_flash.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_flash.c"
-A1=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_gpio.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_gpio.c"
-A2=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_spi.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_spi.c"
-A3=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_syscfg.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_syscfg.c"
-A4=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_usart.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_usart.c"
-A5=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\stm32f4_stdfile\startup\startup_stm32f4xx.s" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\startup\startup_stm32f4xx.s"
-A6=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\stm32f4-Discovery\stm32f4_discovery.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32f4-discovery\stm32f4_discovery.c"
-A7=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\stm32f4-discovery\stm32f4_discovery_lis302dl.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32f4-discovery\stm32f4_discovery_lis302dl.c"
-A8=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\user\main.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\user\main.c"
-Count=9
-SuppressDialog=1
 [Trace2]
 Enabled=0
 ShowSource=0
@@ -126,3 +108,22 @@ Mode=3
 Graph=0
 Symbiont=0
 Exclusions=
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Bp0=_ 0 "EMUL_DATA" "totalDataNumber" 0 0 0 0 4294967295
+Bp1=_ 0 "EMUL_DATA" "totalDataNumber" 0 0 0 0 4294967295
+Count=2
+[Aliases]
+A0=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_exti.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_exti.c"
+A1=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_flash.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_flash.c"
+A2=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_gpio.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_gpio.c"
+A3=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_spi.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_spi.c"
+A4=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_syscfg.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_syscfg.c"
+A5=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\examples\test\stm32fxx_StdPeriph_Driver\src\stm32f4xx_usart.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32fxx_StdPeriph_Driver\src\stm32f4xx_usart.c"
+A6=_ "D:\Learning Library\Circuit Designer\单片机编程\stm32单片机\stm32f4_stdfile\startup\startup_stm32f4xx.s" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\startup\startup_stm32f4xx.s"
+A7=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\stm32f4-Discovery\stm32f4_discovery.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32f4-discovery\stm32f4_discovery.c"
+A8=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\stm32f4-discovery\stm32f4_discovery_lis302dl.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\stm32f4-discovery\stm32f4_discovery_lis302dl.c"
+A9=_ "D:\Learning_Library\Project\2012校创新创业\项目实现\stm32f4_stdfile\user\main.c" "D:\Learning_Library\Project\2012innovation\implementation\lowerComputer\user\main.c"
+Count=10
+SuppressDialog=1

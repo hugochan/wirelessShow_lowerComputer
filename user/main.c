@@ -174,7 +174,6 @@ int main(void)
 static void Demo_Exec(void)
 {
   RCC_ClocksTypeDef RCC_Clocks;
-  uint8_t togglecounter = 0x00;
   
   /* 串口配置 */
   USART1_Config();
@@ -185,7 +184,10 @@ static void Demo_Exec(void)
   STM_EVAL_LEDInit(LED3);
   STM_EVAL_LEDInit(LED5);
   STM_EVAL_LEDInit(LED6);
-    
+  
+  //每次系统初始化后，都读取flash查看存储空间剩余情况
+  flash_readIndex(IndexList,uniIndexLength, &IndexCount);
+  
   while(1)
   {
     DemoEnterCondition = 0x00;
@@ -199,7 +201,7 @@ static void Demo_Exec(void)
     SysTick_Config(RCC_Clocks.HCLK_Frequency / TimeDev);
     
     
-    
+
     /******************************************/
     /***空闲状态，清空flash或者发送数据选项****/
     /******************************************/
@@ -260,6 +262,7 @@ static void Demo_Exec(void)
           unsigned char sendData[4];
           
           SendString("index");
+          SendCounter = 0;
           while(SendCounter < IndexCount)
           {
             uint32_to_uint8(sendData,IndexList[SendCounter]);
@@ -331,6 +334,7 @@ static void Demo_Exec(void)
                i += uniIndexLength;
              }
              flash_writeIndex(IndexList,IndexCount-uniIndexLength);//后重写该条index记录
+             IndexCount -= 3;
           }
           
         }
@@ -341,10 +345,11 @@ static void Demo_Exec(void)
       if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_12) == Bit_SET)
       {
         /*waiting Button(PB12) being released*/
-        while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_12) == Bit_SET);//??不灵敏
+        while(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_12) == Bit_SET);
         
         /* flash初始化 */
         flash_init();
+        IndexCount = 0;
         /*灯全闪烁后全灭，指示flash中用户数据被擦除*/
          STM_EVAL_LEDToggle(LED4);
          STM_EVAL_LEDToggle(LED3);
@@ -359,31 +364,32 @@ static void Demo_Exec(void)
       }
       
       /* Toggle LED4 */
-      STM_EVAL_LEDToggle(LED4);
-      Delay(10);
-      /* Toggle LED4 */
-      STM_EVAL_LEDToggle(LED3);
-      Delay(10);
-      /* Toggle LED4 */
-      STM_EVAL_LEDToggle(LED5);
-      Delay(10);
-      /* Toggle LED4 */
       STM_EVAL_LEDToggle(LED6);
-      Delay(10);
-      togglecounter ++;
-      if (togglecounter == 0x10)
+      Delay(50);
+      //LED4 3 5用于二进制编码指示flash存储区占用个数
+      if((IndexCount/uniIndexLength)&(0x01))//最低位
+      { 
+        STM_EVAL_LEDOn(LED5);
+      }
+      else
       {
-        togglecounter = 0x00;
-        while (togglecounter < 0x10)
-        {
-          STM_EVAL_LEDToggle(LED4);
-          STM_EVAL_LEDToggle(LED3);
-          STM_EVAL_LEDToggle(LED5);
-          STM_EVAL_LEDToggle(LED6);
-          Delay(10);
-          togglecounter ++;
-        }
-       togglecounter = 0x00;
+         STM_EVAL_LEDOff(LED5);
+      }
+      if((IndexCount/uniIndexLength)&(0x02))
+      { 
+        STM_EVAL_LEDOn(LED3);
+      }
+      else
+      {
+         STM_EVAL_LEDOff(LED3);
+      }
+      if((IndexCount/uniIndexLength)&(0x04))//最高位
+      { 
+        STM_EVAL_LEDOn(LED4);
+      }
+      else
+      {
+         STM_EVAL_LEDOff(LED4);
       }
     }
     
@@ -418,7 +424,6 @@ static void Demo_Exec(void)
     NoWrittenFlag = 0;//未写入标志位复位
     WritingSectorFlag = 0;//正在写入sector标志位复位
     totalDataNumber = 0;//各段记录数据个数计数器复位
-    IndexCount = 0;//IndexList计数器复位
     
     
     UserButtonPressed = 0x00;
@@ -466,11 +471,11 @@ static void Demo_Exec(void)
             NoFreeSectors = 1;//无空闲sector块置位
             NoWrittenFlag = 0;
             
-            /* 指示灯依次全灭，指示存储空间已满 */
-            STM_EVAL_LEDOff(LED4);
-            STM_EVAL_LEDOff(LED3);
-            STM_EVAL_LEDOff(LED5);
-            STM_EVAL_LEDOff(LED6);
+            /* 指示灯全亮，指示存储空间已满 */
+            STM_EVAL_LEDOn(LED4);
+            STM_EVAL_LEDOn(LED3);
+            STM_EVAL_LEDOn(LED5);
+            STM_EVAL_LEDOn(LED6);
             break;//退出采样模式
           }
           else
@@ -508,12 +513,12 @@ static void Demo_Exec(void)
         break;
       }
       
-      /* 指示灯依次闪烁，指示进入采样状态 */
+      /* 指示灯全灭，指示进入采样状态 */
+      STM_EVAL_LEDOff(LED4);
       STM_EVAL_LEDOff(LED4);
       STM_EVAL_LEDOff(LED3);
       STM_EVAL_LEDOff(LED5);
       STM_EVAL_LEDOff(LED6);
-      //Delay(10);
     }
     
     /* Waiting User Button is Released */
@@ -552,6 +557,7 @@ static void Demo_Exec(void)
       IndexList[IndexCount+2] = totalDataNumber;//写入最新的段记录总个数
       flash_init_sector(((uint32_t)0x08010000));//先擦除Index区域（sector 4）
       flash_writeIndex(IndexList,IndexCount+3);//后写入
+      IndexCount += 3;
     }
          
     /* Disable SPI1 used to drive the MEMS accelerometre */

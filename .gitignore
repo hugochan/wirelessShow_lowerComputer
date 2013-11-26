@@ -1,1 +1,9 @@
 *.bak
+/Debug/
+/settings/
+*.dep
+*.ewd
+*.ewp
+*.eww
+*.sfr
+*.icf
