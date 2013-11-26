@@ -236,7 +236,7 @@ char flash_writeData(uint8_t Data[],uint32_t DataNumber, uint32_t dataStartAddr)
     /* Program the user Flash area word by word
      (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/ 
     while(i < DataNumber)
-    {  
+    {
       if(totalDataNumber < maxTotalDataNumber)
       { 
         if (FLASH_ProgramByte(dataStartAddr+totalDataNumber, Data[i]) == FLASH_COMPLETE)

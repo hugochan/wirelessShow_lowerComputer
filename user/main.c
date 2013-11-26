@@ -396,6 +396,22 @@ static void Demo_Exec(void)
     /******************************************/
     /***退出空闲状态，采样状态配置初始化*******/
     /******************************************/
+    STM_EVAL_LEDOn(LED4);
+    STM_EVAL_LEDOff(LED4);
+    Delay(10);
+    STM_EVAL_LEDOn(LED3);
+    STM_EVAL_LEDOff(LED3);
+    Delay(10);
+    STM_EVAL_LEDOn(LED5);
+    STM_EVAL_LEDOff(LED5);
+    Delay(10);
+    STM_EVAL_LEDOn(LED6);
+    STM_EVAL_LEDOff(LED6);
+    Delay(10);
+    
+    
+    
+    
     /*各段记录相互独立的标志位均清零*/
     Counter = 0;//分组采用计数器复位
     DataWriteErrorFlag = 0;//flash写入错误标志位复位
@@ -493,10 +509,11 @@ static void Demo_Exec(void)
       }
       
       /* 指示灯依次闪烁，指示进入采样状态 */
-      STM_EVAL_LEDToggle(LED4);
-      STM_EVAL_LEDToggle(LED3);
-      STM_EVAL_LEDToggle(LED5);
-      STM_EVAL_LEDToggle(LED6);      
+      STM_EVAL_LEDOff(LED4);
+      STM_EVAL_LEDOff(LED3);
+      STM_EVAL_LEDOff(LED5);
+      STM_EVAL_LEDOff(LED6);
+      //Delay(10);
     }
     
     /* Waiting User Button is Released */
@@ -654,7 +671,7 @@ void USART1_Config(void)
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
     GPIO_Init(GPIOB,&GPIO_InitStructure);
     /* USART1 mode config */
-    USART_InitStructure.USART_BaudRate = 19200;  //9600HZ波特率
+    USART_InitStructure.USART_BaudRate = 19200;  //19200HZ波特率
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
     USART_InitStructure.USART_Parity = USART_Parity_No ;
